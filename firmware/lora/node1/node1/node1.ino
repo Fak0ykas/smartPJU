@@ -17,12 +17,14 @@ int statusRelay;
 int HSBtimer, LSBtimer;
 int HSBCONSTANTA, LSBCONSTANTA;
 int flag = 0;
+float bufferPZEM;
+//int countPZEM = 0;
+int countLamp = 0;
 
 //--------Inisialisasi Sensor PZEM------
 #define RX_PZEM 16
 #define TX_PZEM 17
 PZEM004Tv30 pzem(Serial2, RX_PZEM, TX_PZEM);
-
 String dataSensor[1];
 
 
@@ -41,8 +43,9 @@ int flagPhase = 1;
 int CONSTANTAPHASE = 1;
 int CONSSTART = 2;
 int CONSFINISH = 4;
-unsigned long interval = 1000;    // 10 s interval to send message
+unsigned long interval = 500;    // 10 s interval to send message
 unsigned long previousMillis = 0;  // will store last time message sent
+
 
 
 
@@ -132,21 +135,25 @@ void onReceive(int packetSize) {
         digitalWrite(pinRelay, HIGH);
       else
         digitalWrite(pinRelay, LOW);
+
       //      EEPROM.write(0, relay);
       statusRelay = relay;
       CONSTANTARELAY = relay;
       HSBtimer = HSBtimerRelay;
       LSBtimer = LSBtimerRelay;
-      interval = (HSBtimer * 255 + LSBtimer) * 1000;
+      interval = (HSBtimer * 255 + LSBtimer) * 10;
       Serial.println(interval);
       HSBCONSTANTA = HSBtimerRelay;
       LSBCONSTANTA = LSBtimerRelay;
       previousMillis = 0;
       flag = 1;
+      delay(3000);
+      readSensor();
       sendMessage(dataSensor[0]);
     }
     else if (incoming == "connection") {
-      sendMessage("oke");
+      Serial.println("datamasuk");
+      sendMessage("oke#" + dataSensor[0]);
     }
     flagPhase = CONSTANTAPHASE;
   }
@@ -155,7 +162,7 @@ void onReceive(int packetSize) {
 
 //---------Inisialiasi OTA Web---------
 const char *host = "esp32";
-const char *ssid = "SmartPJU-node2";
+const char *ssid = "SmartPJU-node3";
 const char *password = "12345678";
 
 WebServer server(80);
@@ -299,7 +306,6 @@ void setup() {
 
   if (!LoRa.begin(915E6)) {             // initialize ratio at 915 MHz
     Serial.println("LoRa init failed. Check your connections.");
-    while (true);                       // if failed, do nothing
   }
 
   //  -------OTA----------
@@ -376,19 +382,19 @@ void setup() {
 
 void loop() {
   if (millis() - previousMillis > interval && flag == 1) {
-    if (statusRelay == 1) {
-      digitalWrite(pinRelay, HIGH);
-      statusRelay = 0;
-    }
-    else if (statusRelay == 0) {
-      digitalWrite(pinRelay, LOW);
-      statusRelay = 1;
-    }
-
+    //    if (statusRelay == 1 && flag == 1) {
+    //      digitalWrite(pinRelay, HIGH);
+    //      statusRelay = 0;
+    //    }
+    //    else if (statusRelay == 0 && flag == 1) {
+    //      digitalWrite(pinRelay, LOW);
+    //      statusRelay = 1;
+    //    }
+    readSensor();
     previousMillis = millis();
   }
-  readSensor();
+
   server.handleClient();
   onReceive(LoRa.parsePacket());
-  //  delay(200);
+
 }
